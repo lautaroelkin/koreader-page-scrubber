@@ -1,12 +1,6 @@
-
 --[[
     2-page-scrubber.lua
-    Page scrubber overlay (Ultimate Production Version).
-    
-    - Safe execution strictly restricted to EPUB / flowable formats.
-    - Balanced, smooth hold acceleration.
-    - Protected enter/exit SkimMode calls.
-    - Hardware Back button triggers return to original page.
+    Page scrubber overlay (Ultimate Fast-Scrub Hidden UI Version).
 ]]--
 
 local Blitbuffer      = require("ffi/blitbuffer")
@@ -24,8 +18,6 @@ local logger          = require("logger")
 local _               = require("gettext")
 
 local Screen = Device.screen
-
--- ── Helpers Gráficos ──────────────────────────────────────────────────────────
 
 local function paintPill(bb, px, py, pw, ph, color)
     if pw <= 0 or ph <= 0 then return end
@@ -63,8 +55,6 @@ local function paintRoundRect(bb, x, y, w, h, r, color)
         end
     end
 end
-
--- ── Progress Slider ───────────────────────────────────────────────────────────
 
 local ProgressSlider = {}
 ProgressSlider.__index = ProgressSlider
@@ -161,13 +151,17 @@ function ProgressSlider:handlePanRelease(ges)
     return true
 end
 
--- ── PageScrubber widget ───────────────────────────────────────────────────────
-
 local PageScrubber = InputContainer:extend{ name = "page_scrubber", transparent = true }
 
 function PageScrubber:init()
     local ui  = self.ui
     local doc = ui.document
+
+    self._old_can_do = Device.canDoSwipeAnimation
+    Device.canDoSwipeAnimation = function() return false end
+    
+    self._saved_swipe_animations = Screen.swipe_animations
+    Screen.swipe_animations = false
 
     if self.ui.paging and type(self.ui.paging.enterSkimMode) == "function" then
         pcall(function() self.ui.paging:enterSkimMode() end)
@@ -178,6 +172,8 @@ function PageScrubber:init()
     self._total_pages = (doc and doc.getPageCount and doc:getPageCount()) or 1
     self._pressed_btn = nil
     self._closing     = false
+    self._hold_token  = 0
+    self._hidden_mode = false
 
     local sw = Screen:getWidth()
     local sh = Screen:getHeight()
@@ -311,6 +307,8 @@ function PageScrubber:_flashAndDo(btn_id, rect, action_func)
 end
 
 function PageScrubber:paintTo(bb, x, y)
+    -- Si estamos manteniendo presionado (modo oculto), no dibujamos el cuadro ni la barra
+    if self._hidden_mode then return end
     local ok, err = pcall(function() self:_paintToImpl(bb, x, y) end)
     if not ok then logger.warn("page-scrubber paintTo error:", err) end
 end
@@ -430,23 +428,38 @@ function PageScrubber:_closeAndShow(event_name)
     end)
 end
 
--- Hold más pausado y natural 
 function PageScrubber:_startHold(action)
     self._hold_active = true
-    local delay = 0.20
+    self._hold_token = self._hold_token + 1
+    local current_token = self._hold_token
+    
+    local initial_delay = 0.4
     local function rep()
-        if not self._hold_active or self._closing then return end
+        if not self._hold_active or self._closing or self._hold_token ~= current_token then return end
+        
+        -- Ocultamos la interfaz en cuanto arranca el cambio continuo
+        if not self._hidden_mode then
+            self._hidden_mode = true
+            UIManager:setDirty(self, "ui", self.dimen)
+        end
+
         if action == "prev" then self:_gotoPage(self._cur_page - 1)
         elseif action == "next" then self:_gotoPage(self._cur_page + 1) end
         
-        delay = math.max(0.20, delay * 0.95)
-        UIManager:scheduleIn(delay, rep)
+        UIManager:scheduleIn(0.25, rep)
     end
-    UIManager:scheduleIn(0.17, rep)
+    UIManager:scheduleIn(initial_delay, rep)
 end
 
 function PageScrubber:_cancelHold()
     self._hold_active = false
+    self._hold_token = self._hold_token + 1
+    
+    -- Si la interfaz estaba oculta, la volvemos a mostrar al soltar
+    if self._hidden_mode then
+        self._hidden_mode = false
+        UIManager:setDirty(self, "ui", self.dimen)
+    end
 end
 
 function PageScrubber:onHide()
@@ -537,6 +550,13 @@ end
 function PageScrubber:onCloseWidget()
     self:_cancelHold()
     
+    if self._old_can_do then
+        Device.canDoSwipeAnimation = self._old_can_do
+    end
+    if self._saved_swipe_animations ~= nil then
+        Screen.swipe_animations = self._saved_swipe_animations
+    end
+
     if self.tw_chapter then self.tw_chapter:free() end
     if self.tw_info then self.tw_info:free() end
     if self.tw_x then self.tw_x:free() end
@@ -566,7 +586,6 @@ Dispatcher:registerAction("page_scrubber_action", {
 
 function ReaderUI:onPageScrubber()
     local ui = self
-    -- Bloquear completamente en formatos PDF y Cómics para evitar crasheos
     if ui.document and type(ui.document.file) == "string" then
         local ext = ui.document.file:match("^.+(%..+)$")
         if ext then
