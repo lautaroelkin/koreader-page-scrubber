@@ -1,7 +1,7 @@
 
 --[[
     2-page-scrubber.lua
-    Page scrubber overlay (Progress Bar Nudged Upwards Again Version).
+    Page scrubber overlay (Top Right Utility Group with Bordered Buttons & Clean Side Buttons).
 ]]--
 
 local Blitbuffer      = require("ffi/blitbuffer")
@@ -57,6 +57,52 @@ local function paintRoundRect(bb, x, y, w, h, r, color)
     end
 end
 
+local function paintRoundFrame(bb, x, y, w, h, r, thick, color)
+    if w <= 0 or h <= 0 then return end
+    r = math.min(r, math.floor(w / 2), math.floor(h / 2))
+    
+    for row = 0, h - 1 do
+        local inset_out = 0
+        if row < r then
+            local dy_top = (r - row - 0.5)
+            inset_out = math.ceil(r - math.sqrt(r*r - dy_top*dy_top))
+        elseif row >= h - r then
+            local dy_bot = (row - (h - r) + 0.5)
+            inset_out = math.ceil(r - math.sqrt(r*r - dy_bot*dy_bot))
+        end
+        
+        local rw_out = w - 2 * inset_out
+        local px_out = x + inset_out
+        
+        if row < thick or row >= h - thick then
+            if rw_out > 0 then
+                bb:paintRect(px_out, y + row, rw_out, 1, color)
+            end
+        else
+            if thick > 0 and rw_out >= thick * 2 then
+                bb:paintRect(px_out, y + row, thick, 1, color)
+                bb:paintRect(px_out + rw_out - thick, y + row, thick, 1, color)
+            elseif rw_out > 0 then
+                bb:paintRect(px_out, y + row, rw_out, 1, color)
+            end
+        end
+    end
+end
+
+local function paintRoundedMaskCorners(bb, x, y, w, h, r, color)
+    if r <= 0 then return end
+    for j = 0, r - 1 do
+        local arc = math.floor(math.sqrt(r*r - (r-j-0.5)*(r-j-0.5)) + 0.5)
+        local corner_w = r - arc
+        if corner_w > 0 then
+            bb:paintRect(x, y + j, corner_w, 1, color)
+            bb:paintRect(x + w - corner_w, y + j, corner_w, 1, color)
+            bb:paintRect(x, y + h - 1 - j, corner_w, 1, color)
+            bb:paintRect(x + w - corner_w, y + h - 1 - j, corner_w, 1, color)
+        end
+    end
+end
+
 local ProgressSlider = {}
 ProgressSlider.__index = ProgressSlider
 
@@ -90,11 +136,11 @@ function ProgressSlider:paintTo(bb, x, y)
     local r = self.knob_r
     local cy = math.floor(y + h / 2)
     
-    paintPill(bb, x, cy - Screen:scaleBySize(2), w, Screen:scaleBySize(4), Blitbuffer.COLOR_DARK_GRAY)
+    paintPill(bb, x, cy - Screen:scaleBySize(2), w, Screen:scaleBySize(4), Blitbuffer.COLOR_LIGHT_GRAY)
     local frac = (self.value - self.value_min) / math.max(1, self.value_max - self.value_min)
     local fw = math.floor(frac * w + 0.5)
     
-    if fw > 0 then paintPill(bb, x, cy - Screen:scaleBySize(2), fw, Screen:scaleBySize(4), Blitbuffer.COLOR_WHITE) end
+    if fw > 0 then paintPill(bb, x, cy - Screen:scaleBySize(2), fw, Screen:scaleBySize(4), Blitbuffer.COLOR_BLACK) end
 
     local kx = math.floor(x + self:_valueToX(self.value))
     paintCircle(bb, kx, cy, r, Blitbuffer.COLOR_WHITE)
@@ -172,11 +218,16 @@ function PageScrubber:init()
     local bar_y     = sh - bar_h
     self._bar_dimen = Geom:new{ x = 0, y = bar_y, w = sw, h = bar_h }
 
-    local win_pad  = Screen:scaleBySize(28)
-    local win_x    = win_pad
-    local win_y    = Screen:scaleBySize(40)
-    local win_w    = sw - win_pad * 2
-    local win_h    = bar_y - win_y - Screen:scaleBySize(12)
+    local edge_margin = Screen:scaleBySize(6)
+    local arr_sz      = Screen:scaleBySize(52)
+    local gap         = Screen:scaleBySize(10)
+
+    local win_x       = edge_margin + arr_sz + gap
+    local right_btn_x = sw - edge_margin - arr_sz
+    local win_w       = right_btn_x - gap - win_x
+    local win_y       = Screen:scaleBySize(60)
+    local win_h       = bar_y - win_y - Screen:scaleBySize(12)
+
     self._win_dimen = Geom:new{ x = win_x, y = win_y, w = win_w, h = win_h }
 
     self._cbtn_sz  = Screen:scaleBySize(56)
@@ -198,39 +249,39 @@ function PageScrubber:init()
     self.font_in = Font:getFace("cfont", Screen:scaleBySize(18))
     self.max_title_w = sw - pad * 8 - self._cbtn_sz * 2
     
-    self.tw_chapter  = TextWidget:new{ text = "", face = self.font_ch, fgcolor = Blitbuffer.COLOR_WHITE, max_width = self.max_title_w }
-    self.tw_info     = TextWidget:new{ text = "", face = self.font_in, fgcolor = Blitbuffer.COLOR_LIGHT_GRAY }
+    self.tw_chapter  = TextWidget:new{ text = "", face = self.font_ch, fgcolor = Blitbuffer.COLOR_BLACK, max_width = self.max_title_w }
+    self.tw_info     = TextWidget:new{ text = "", face = self.font_in, fgcolor = Blitbuffer.COLOR_DARK_GRAY }
     
-    self.tw_x        = TextWidget:new{ text = "✕", face = Font:getFace("cfont", Screen:scaleBySize(26)), fgcolor = Blitbuffer.COLOR_WHITE }
-    self.tw_toc      = TextWidget:new{ text = "☰", face = Font:getFace("cfont", Screen:scaleBySize(26)), fgcolor = Blitbuffer.COLOR_WHITE }
-    self.tw_bm       = TextWidget:new{ text = "★", face = Font:getFace("cfont", Screen:scaleBySize(24)), fgcolor = Blitbuffer.COLOR_WHITE }
-    self.tw_arr_l    = TextWidget:new{ text = "‹", face = Font:getFace("cfont", Screen:scaleBySize(42)), fgcolor = Blitbuffer.COLOR_WHITE }
-    self.tw_arr_r    = TextWidget:new{ text = "›", face = Font:getFace("cfont", Screen:scaleBySize(42)), fgcolor = Blitbuffer.COLOR_WHITE }
-    self.tw_ch_l     = TextWidget:new{ text = "‹‹", face = Font:getFace("cfont", Screen:scaleBySize(28)), fgcolor = Blitbuffer.COLOR_WHITE }
-    self.tw_ch_r     = TextWidget:new{ text = "››", face = Font:getFace("cfont", Screen:scaleBySize(28)), fgcolor = Blitbuffer.COLOR_WHITE }
+    -- Botones ToC, Star y X arriba a la derecha con el mismo estilo
+    self.tw_toc      = TextWidget:new{ text = "☰",   face = Font:getFace("cfont", Screen:scaleBySize(22)), fgcolor = Blitbuffer.COLOR_BLACK }
+    self.tw_bm       = TextWidget:new{ text = "★",   face = Font:getFace("cfont", Screen:scaleBySize(20)), fgcolor = Blitbuffer.COLOR_BLACK }
+    self.tw_x        = TextWidget:new{ text = "✕",   face = Font:getFace("cfont", Screen:scaleBySize(22)), fgcolor = Blitbuffer.COLOR_BLACK }
+
+    self.tw_arr_l    = TextWidget:new{ text = "‹",   face = Font:getFace("cfont", Screen:scaleBySize(42)), fgcolor = Blitbuffer.COLOR_BLACK }
+    self.tw_arr_r    = TextWidget:new{ text = "›",   face = Font:getFace("cfont", Screen:scaleBySize(42)), fgcolor = Blitbuffer.COLOR_BLACK }
+    self.tw_ch_l     = TextWidget:new{ text = "‹‹",  face = Font:getFace("cfont", Screen:scaleBySize(28)), fgcolor = Blitbuffer.COLOR_BLACK }
+    self.tw_ch_r     = TextWidget:new{ text = "››",  face = Font:getFace("cfont", Screen:scaleBySize(28)), fgcolor = Blitbuffer.COLOR_BLACK }
 
     local font_ctrl  = Font:getFace("cfont", Screen:scaleBySize(23))
-    self.tw_ctrl_prev = TextWidget:new{ text = "‹", face = font_ctrl, fgcolor = Blitbuffer.COLOR_WHITE }
-    self.tw_ctrl_mark = TextWidget:new{ text = "\u{F097}", face = font_ctrl, fgcolor = Blitbuffer.COLOR_WHITE }
-    self.tw_ctrl_next = TextWidget:new{ text = "›", face = font_ctrl, fgcolor = Blitbuffer.COLOR_WHITE }
+    self.tw_ctrl_prev = TextWidget:new{ text = "‹", face = font_ctrl, fgcolor = Blitbuffer.COLOR_BLACK }
+    self.tw_ctrl_mark = TextWidget:new{ text = "\u{F097}", face = font_ctrl, fgcolor = Blitbuffer.COLOR_BLACK }
+    self.tw_ctrl_next = TextWidget:new{ text = "›", face = font_ctrl, fgcolor = Blitbuffer.COLOR_BLACK }
 
     self:_updateTexts()
 
-    local x_sz    = Screen:scaleBySize(56)
-    local spacing = Screen:scaleBySize(12)
-    local xbx     = win_x + win_w - x_sz - Screen:scaleBySize(16)
-    local bmbx    = xbx - x_sz - spacing
-    local tocbx   = bmbx - x_sz - spacing
-    local by      = win_y + Screen:scaleBySize(16)
+    -- Posicionamiento de los 3 botones arriba a la derecha (X, Star, ToC de derecha a izquierda)
+    local top_sz    = Screen:scaleBySize(46)
+    local spacing   = Screen:scaleBySize(8)
+    local right_base = win_x + win_w - Screen:scaleBySize(12)
+    local by      = win_y + Screen:scaleBySize(12)
 
-    self._x_dimen   = Geom:new{ x = xbx, y = by, w = x_sz, h = x_sz }
-    self._bm_dimen  = Geom:new{ x = bmbx, y = by, w = x_sz, h = x_sz }
-    self._toc_dimen = Geom:new{ x = tocbx, y = by, w = x_sz, h = x_sz }
+    self._x_dimen   = Geom:new{ x = right_base - top_sz, y = by, w = top_sz, h = top_sz }
+    self._bm_dimen  = Geom:new{ x = self._x_dimen.x - spacing - top_sz, y = by, w = top_sz, h = top_sz }
+    self._toc_dimen = Geom:new{ x = self._bm_dimen.x - spacing - top_sz, y = by, w = top_sz, h = top_sz }
     
-    local arr_sz  = Screen:scaleBySize(60)
-    local arr_y   = win_y + math.floor((win_h - arr_sz) / 2)
-    self._prev_dimen = Geom:new{ x = win_x + Screen:scaleBySize(16), y = arr_y, w = arr_sz, h = arr_sz }
-    self._next_dimen = Geom:new{ x = win_x + win_w - arr_sz - Screen:scaleBySize(16), y = arr_y, w = arr_sz, h = arr_sz }
+    local arr_y   = win_y + math.floor((win_h - arr_sz) / 2) - Screen:scaleBySize(8)
+    self._prev_dimen = Geom:new{ x = edge_margin, y = arr_y, w = arr_sz, h = arr_sz }
+    self._next_dimen = Geom:new{ x = right_btn_x, y = arr_y, w = arr_sz, h = arr_sz }
 
     local side_sz = Screen:scaleBySize(42)
     local mark_sz = Screen:scaleBySize(50)
@@ -329,7 +380,7 @@ function PageScrubber:_paintToImpl(bb, x, y)
     local bd   = self._bar_dimen
     local wd   = self._win_dimen
 
-    local mask_color = Blitbuffer.COLOR_BLACK
+    local mask_color = Blitbuffer.COLOR_WHITE
     if wd.y > 0 then bb:paintRect(0, 0, sw, wd.y, mask_color) end
     if wd.x > 0 then bb:paintRect(0, wd.y, wd.x, wd.h, mask_color) end
     local rw = sw - (wd.x + wd.w)
@@ -337,16 +388,15 @@ function PageScrubber:_paintToImpl(bb, x, y)
     local bh = bd.y - (wd.y + wd.h)
     if bh > 0 then bb:paintRect(0, wd.y + wd.h, sw, bh, mask_color) end
 
-    local thick = Screen:scaleBySize(3)
-    local border_color = Blitbuffer.COLOR_WHITE
-    bb:paintRect(wd.x - thick, wd.y - thick, wd.w + thick*2, thick, border_color)
-    bb:paintRect(wd.x - thick, wd.y + wd.h, wd.w + thick*2, thick, border_color)
-    bb:paintRect(wd.x - thick, wd.y, thick, wd.h, border_color)
-    bb:paintRect(wd.x + wd.w, wd.y, thick, wd.h, border_color)
+    local corner_r = Screen:scaleBySize(12)
+    paintRoundedMaskCorners(bb, wd.x, wd.y, wd.w, wd.h, corner_r, mask_color)
+
+    local thick = Screen:scaleBySize(2)
+    paintRoundFrame(bb, wd.x, wd.y, wd.w, wd.h, corner_r, thick, Blitbuffer.COLOR_BLACK)
 
     local function drawFloatingBtn(btn_id, dimen, tw, text_offset_x)
         local is_pressed = (self._pressed_btn == btn_id)
-        local fg_color = is_pressed and Blitbuffer.COLOR_DARK_GRAY or Blitbuffer.COLOR_WHITE
+        local fg_color = is_pressed and Blitbuffer.COLOR_WHITE or Blitbuffer.COLOR_BLACK
         
         local cx = dimen.x + math.floor(dimen.w / 2)
         local cy = dimen.y + math.floor(dimen.h / 2)
@@ -364,42 +414,38 @@ function PageScrubber:_paintToImpl(bb, x, y)
             return
         end
 
+        -- Botones con el mismo estilo de borde redondeado de la X (ToC, Star, X)
         if btn_id == "x" or btn_id == "bm" or btn_id == "toc" then
-            local bg_color = is_pressed and Blitbuffer.COLOR_WHITE or Blitbuffer.COLOR_BLACK
-            fg_color = is_pressed and Blitbuffer.COLOR_BLACK or Blitbuffer.COLOR_WHITE
-            paintRoundRect(bb, dimen.x, dimen.y, dimen.w, dimen.h, Screen:scaleBySize(8), Blitbuffer.COLOR_WHITE)
-            paintRoundRect(bb, dimen.x + Screen:scaleBySize(2), dimen.y + Screen:scaleBySize(2), dimen.w - Screen:scaleBySize(4), dimen.h - Screen:scaleBySize(4), Screen:scaleBySize(6), bg_color)
+            local bg_color = is_pressed and Blitbuffer.COLOR_BLACK or Blitbuffer.COLOR_WHITE
+            fg_color = is_pressed and Blitbuffer.COLOR_WHITE or Blitbuffer.COLOR_BLACK
+            
+            paintRoundRect(bb, dimen.x - Screen:scaleBySize(1), dimen.y - Screen:scaleBySize(1), dimen.w + Screen:scaleBySize(2), dimen.h + Screen:scaleBySize(2), Screen:scaleBySize(9), Blitbuffer.COLOR_BLACK)
+            paintRoundRect(bb, dimen.x, dimen.y, dimen.w, dimen.h, Screen:scaleBySize(8), bg_color)
             
             tw.fgcolor = fg_color
             local tsz = tw:getSize()
-            local top_y_off = Screen:scaleBySize(1)
-            tw:paintTo(bb, cx - math.floor(tsz.w / 2), cy - math.floor(tsz.h / 2) + top_y_off)
+            tw:paintTo(bb, cx - math.floor(tsz.w / 2), cy - math.floor(tsz.h / 2) + Screen:scaleBySize(1))
             return
         end
 
-        do
-            local bg_color = is_pressed and Blitbuffer.COLOR_WHITE or Blitbuffer.COLOR_BLACK
-            fg_color = is_pressed and Blitbuffer.COLOR_BLACK or Blitbuffer.COLOR_WHITE
-            paintCircle(bb, cx, cy, math.floor(dimen.w / 2), Blitbuffer.COLOR_WHITE)
-            paintCircle(bb, cx, cy, math.floor(dimen.w / 2) - Screen:scaleBySize(2), bg_color)
-
-            tw.fgcolor = fg_color
+        -- Botones laterales de cambio de página: solo cambia el color del texto al presionar
+        if btn_id == "arr_l" or btn_id == "arr_r" then
+            tw.fgcolor = is_pressed and Blitbuffer.COLOR_DARK_GRAY or Blitbuffer.COLOR_BLACK
             local tsz = tw:getSize()
-            local arr_x_off = text_offset_x or 0
-            local arr_y_off = -Screen:scaleBySize(4)
-            tw:paintTo(bb, cx - math.floor(tsz.w / 2) + arr_x_off, cy - math.floor(tsz.h / 2) + arr_y_off)
+            tw:paintTo(bb, cx - math.floor(tsz.w / 2), cy - math.floor(tsz.h / 2))
+            return
         end
     end
 
-    drawFloatingBtn("x", self._x_dimen, self.tw_x)
-    drawFloatingBtn("bm", self._bm_dimen, self.tw_bm)
     drawFloatingBtn("toc", self._toc_dimen, self.tw_toc)
+    drawFloatingBtn("bm", self._bm_dimen, self.tw_bm)
+    drawFloatingBtn("x", self._x_dimen, self.tw_x)
     
-    drawFloatingBtn("arr_l", self._prev_dimen, self.tw_arr_l, -Screen:scaleBySize(2))
-    drawFloatingBtn("arr_r", self._next_dimen, self.tw_arr_r, Screen:scaleBySize(2))
+    drawFloatingBtn("arr_l", self._prev_dimen, self.tw_arr_l, 0)
+    drawFloatingBtn("arr_r", self._next_dimen, self.tw_arr_r, 0)
 
-    bb:paintRect(bd.x, bd.y, bd.w, bd.h, Blitbuffer.COLOR_BLACK)
-    bb:paintRect(bd.x, bd.y, bd.w, Screen:scaleBySize(2), Blitbuffer.COLOR_WHITE)
+    bb:paintRect(bd.x, bd.y, bd.w, bd.h, Blitbuffer.COLOR_WHITE)
+    bb:paintRect(bd.x, bd.y, bd.w, Screen:scaleBySize(2), Blitbuffer.COLOR_BLACK)
 
     drawFloatingBtn("ch_l", self._prev_ch_dimen, self.tw_ch_l)
     drawFloatingBtn("ch_r", self._next_ch_dimen, self.tw_ch_r)
@@ -418,7 +464,6 @@ function PageScrubber:_paintToImpl(bb, x, y)
     local info_y = self.ch_y_pos + csz_tw.h + Screen:scaleBySize(2)
     self.tw_info:paintTo(bb, math.floor((sw - isz.w) / 2), info_y)
 
-    -- Barra de progreso un toquecito más arriba todavía
     local slider_x = pad * 2
     local slider_y = info_y + isz.h - Screen:scaleBySize(6)
     self._slider.value = self._cur_page
@@ -508,10 +553,30 @@ end
 function PageScrubber:onTap(_, ges)
     self:_cancelHold()
     if self._closing then return true end
-    if self._x_dimen and ges.pos:intersectWith(self._x_dimen) then
-        self:_flashAndDo("x", self._x_dimen, function() self:_closeReturn() end)
+
+    local hit_margin = Screen:scaleBySize(18)
+    local extended_prev = Geom:new{
+        x = self._prev_dimen.x - hit_margin,
+        y = self._prev_dimen.y - hit_margin,
+        w = self._prev_dimen.w + hit_margin * 2,
+        h = self._prev_dimen.h + hit_margin * 2,
+    }
+    local extended_next = Geom:new{
+        x = self._next_dimen.x - hit_margin,
+        y = self._next_dimen.y - hit_margin,
+        w = self._next_dimen.w + hit_margin * 2,
+        h = self._next_dimen.h + hit_margin * 2,
+    }
+
+    if ges.pos:intersectWith(extended_prev) then
+        self:_flashAndDo("arr_l", self._prev_dimen, function() self:_gotoPage(self._cur_page - 1) end)
         return true
     end
+    if ges.pos:intersectWith(extended_next) then
+        self:_flashAndDo("arr_r", self._next_dimen, function() self:_gotoPage(self._cur_page + 1) end)
+        return true
+    end
+
     if self._toc_dimen and ges.pos:intersectWith(self._toc_dimen) then
         self:_flashAndDo("toc", self._toc_dimen, function() self:_closeAndShow("ShowToc") end)
         return true
@@ -520,6 +585,11 @@ function PageScrubber:onTap(_, ges)
         self:_flashAndDo("bm", self._bm_dimen, function() self:_closeAndShow("ShowBookmark") end)
         return true
     end
+    if self._x_dimen and ges.pos:intersectWith(self._x_dimen) then
+        self:_flashAndDo("x", self._x_dimen, function() self:_closeReturn() end)
+        return true
+    end
+
     if self._ctrl_prev_dimen and ges.pos:intersectWith(self._ctrl_prev_dimen) then
         self:_flashAndDo("ctrl_prev", self._ctrl_prev_dimen, function()
             self.ui:handleEvent(Event:new("GotoPreviousBookmarkFromPage", false))
@@ -547,14 +617,6 @@ function PageScrubber:onTap(_, ges)
         end)
         return true
     end
-    if self._prev_dimen and ges.pos:intersectWith(self._prev_dimen) then
-        self:_flashAndDo("arr_l", self._prev_dimen, function() self:_gotoPage(self._cur_page - 1) end)
-        return true
-    end
-    if self._next_dimen and ges.pos:intersectWith(self._next_dimen) then
-        self:_flashAndDo("arr_r", self._next_dimen, function() self:_gotoPage(self._cur_page + 1) end)
-        return true
-    end
     if self._prev_ch_dimen and ges.pos:intersectWith(self._prev_ch_dimen) then
         self:_flashAndDo("ch_l", self._prev_ch_dimen, function() self:_prevChapter() end)
         return true
@@ -565,9 +627,15 @@ function PageScrubber:onTap(_, ges)
     end
     if self._slider:handleTap(ges) then return true end
     
+    if self._bar_dimen and ges.pos:intersectWith(self._bar_dimen) then
+        return true
+    end
+
     if self._win_dimen and ges.pos:intersectWith(self._win_dimen) then
         self:_closeStay(); return true
     end
+
+    self:_closeReturn()
     return true
 end
 
