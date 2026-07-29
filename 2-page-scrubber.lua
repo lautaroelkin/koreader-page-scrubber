@@ -1,6 +1,7 @@
+
 --[[
     2-page-scrubber.lua
-    Page scrubber overlay (Robust Bookmark & Rounded Chapters Version).
+    Page scrubber overlay (Progress Bar Nudged Upwards Again Version).
 ]]--
 
 local Blitbuffer      = require("ffi/blitbuffer")
@@ -62,7 +63,7 @@ ProgressSlider.__index = ProgressSlider
 function ProgressSlider:new(o)
     local obj = setmetatable(o or {}, self)
     obj.knob_r = Screen:scaleBySize(12)
-    obj.height = obj.knob_r * 2 + Screen:scaleBySize(16)
+    obj.height = obj.knob_r * 2 + Screen:scaleBySize(14)
     obj.dimen   = Geom:new{ w = obj.width or 0, h = obj.height }
     obj._dragging = false
     return obj
@@ -94,15 +95,6 @@ function ProgressSlider:paintTo(bb, x, y)
     local fw = math.floor(frac * w + 0.5)
     
     if fw > 0 then paintPill(bb, x, cy - Screen:scaleBySize(2), fw, Screen:scaleBySize(4), Blitbuffer.COLOR_WHITE) end
-    
-    if self.ticks and type(self.ticks) == "table" then
-        for _, tick in ipairs(self.ticks) do
-            if type(tick) == "number" then
-                local tx = math.floor(x + self:_valueToX(math.max(1, math.floor(tick * self.value_max + 0.5))))
-                bb:paintRect(tx, cy - Screen:scaleBySize(4), Screen:scaleBySize(2), Screen:scaleBySize(8), Blitbuffer.COLOR_BLACK)
-            end
-        end
-    end
 
     local kx = math.floor(x + self:_valueToX(self.value))
     paintCircle(bb, kx, cy, r, Blitbuffer.COLOR_WHITE)
@@ -163,10 +155,6 @@ function PageScrubber:init()
     self._saved_swipe_animations = Screen.swipe_animations
     Screen.swipe_animations = false
 
-    if self.ui.paging and type(self.ui.paging.enterSkimMode) == "function" then
-        pcall(function() self.ui.paging:enterSkimMode() end)
-    end
-
     self._origin_page = (ui.paging and ui.paging:getCurrentPage()) or (ui.view and ui.view.state and ui.view.state.page) or 1
     self._cur_page    = self._origin_page
     self._total_pages = (doc and doc.getPageCount and doc:getPageCount()) or 1
@@ -180,7 +168,7 @@ function PageScrubber:init()
     local sh = Screen:getHeight()
     local pad = Screen:scaleBySize(16)
 
-    local bar_h     = Screen:scaleBySize(150)
+    local bar_h     = Screen:scaleBySize(190)
     local bar_y     = sh - bar_h
     self._bar_dimen = Geom:new{ x = 0, y = bar_y, w = sw, h = bar_h }
 
@@ -191,40 +179,40 @@ function PageScrubber:init()
     local win_h    = bar_y - win_y - Screen:scaleBySize(12)
     self._win_dimen = Geom:new{ x = win_x, y = win_y, w = win_w, h = win_h }
 
-    self._cbtn_sz  = Screen:scaleBySize(60)
+    self._cbtn_sz  = Screen:scaleBySize(56)
     local slider_w = sw - pad * 4
-    
-    local toc_ticks = nil
-    if self.ui.toc and type(self.ui.toc.getTocTicksFlattened) == "function" then
-        pcall(function() toc_ticks = self.ui.toc:getTocTicksFlattened() end)
-    end
 
     self._slider = ProgressSlider:new{
         width     = slider_w,
         value     = self._cur_page,
         value_min = 1,
         value_max = self._total_pages,
-        ticks     = toc_ticks,
+        ticks     = nil,
     }
     
     self._slider.on_change = function(v)
         self:_gotoPage(v)
     end
 
-    self.font_ch = Font:getFace("cfont", Screen:scaleBySize(25))
-    self.font_in = Font:getFace("cfont", Screen:scaleBySize(19))
+    self.font_ch = Font:getFace("cfont", Screen:scaleBySize(24))
+    self.font_in = Font:getFace("cfont", Screen:scaleBySize(18))
     self.max_title_w = sw - pad * 8 - self._cbtn_sz * 2
     
-    self.tw_chapter = TextWidget:new{ text = "", face = self.font_ch, fgcolor = Blitbuffer.COLOR_WHITE, max_width = self.max_title_w }
-    self.tw_info = TextWidget:new{ text = "", face = self.font_in, fgcolor = Blitbuffer.COLOR_LIGHT_GRAY }
+    self.tw_chapter  = TextWidget:new{ text = "", face = self.font_ch, fgcolor = Blitbuffer.COLOR_WHITE, max_width = self.max_title_w }
+    self.tw_info     = TextWidget:new{ text = "", face = self.font_in, fgcolor = Blitbuffer.COLOR_LIGHT_GRAY }
     
-    self.tw_x     = TextWidget:new{ text = "✕", face = Font:getFace("cfont", Screen:scaleBySize(26)), fgcolor = Blitbuffer.COLOR_WHITE }
-    self.tw_toc   = TextWidget:new{ text = "☰", face = Font:getFace("cfont", Screen:scaleBySize(26)), fgcolor = Blitbuffer.COLOR_WHITE }
-    self.tw_bm    = TextWidget:new{ text = "★", face = Font:getFace("cfont", Screen:scaleBySize(24)), fgcolor = Blitbuffer.COLOR_WHITE }
-    self.tw_arr_l = TextWidget:new{ text = "‹", face = Font:getFace("cfont", Screen:scaleBySize(42)), fgcolor = Blitbuffer.COLOR_WHITE }
-    self.tw_arr_r = TextWidget:new{ text = "›", face = Font:getFace("cfont", Screen:scaleBySize(42)), fgcolor = Blitbuffer.COLOR_WHITE }
-    self.tw_ch_l  = TextWidget:new{ text = "‹‹", face = Font:getFace("cfont", Screen:scaleBySize(30)), fgcolor = Blitbuffer.COLOR_WHITE }
-    self.tw_ch_r  = TextWidget:new{ text = "››", face = Font:getFace("cfont", Screen:scaleBySize(30)), fgcolor = Blitbuffer.COLOR_WHITE }
+    self.tw_x        = TextWidget:new{ text = "✕", face = Font:getFace("cfont", Screen:scaleBySize(26)), fgcolor = Blitbuffer.COLOR_WHITE }
+    self.tw_toc      = TextWidget:new{ text = "☰", face = Font:getFace("cfont", Screen:scaleBySize(26)), fgcolor = Blitbuffer.COLOR_WHITE }
+    self.tw_bm       = TextWidget:new{ text = "★", face = Font:getFace("cfont", Screen:scaleBySize(24)), fgcolor = Blitbuffer.COLOR_WHITE }
+    self.tw_arr_l    = TextWidget:new{ text = "‹", face = Font:getFace("cfont", Screen:scaleBySize(42)), fgcolor = Blitbuffer.COLOR_WHITE }
+    self.tw_arr_r    = TextWidget:new{ text = "›", face = Font:getFace("cfont", Screen:scaleBySize(42)), fgcolor = Blitbuffer.COLOR_WHITE }
+    self.tw_ch_l     = TextWidget:new{ text = "‹‹", face = Font:getFace("cfont", Screen:scaleBySize(28)), fgcolor = Blitbuffer.COLOR_WHITE }
+    self.tw_ch_r     = TextWidget:new{ text = "››", face = Font:getFace("cfont", Screen:scaleBySize(28)), fgcolor = Blitbuffer.COLOR_WHITE }
+
+    local font_ctrl  = Font:getFace("cfont", Screen:scaleBySize(23))
+    self.tw_ctrl_prev = TextWidget:new{ text = "‹", face = font_ctrl, fgcolor = Blitbuffer.COLOR_WHITE }
+    self.tw_ctrl_mark = TextWidget:new{ text = "\u{F097}", face = font_ctrl, fgcolor = Blitbuffer.COLOR_WHITE }
+    self.tw_ctrl_next = TextWidget:new{ text = "›", face = font_ctrl, fgcolor = Blitbuffer.COLOR_WHITE }
 
     self:_updateTexts()
 
@@ -244,7 +232,18 @@ function PageScrubber:init()
     self._prev_dimen = Geom:new{ x = win_x + Screen:scaleBySize(16), y = arr_y, w = arr_sz, h = arr_sz }
     self._next_dimen = Geom:new{ x = win_x + win_w - arr_sz - Screen:scaleBySize(16), y = arr_y, w = arr_sz, h = arr_sz }
 
-    local row1_y = bar_y + Screen:scaleBySize(14)
+    local side_sz = Screen:scaleBySize(42)
+    local mark_sz = Screen:scaleBySize(50)
+    local ctrl_sp = Screen:scaleBySize(15)
+    local total_ctrl_w = side_sz * 2 + mark_sz + ctrl_sp * 2
+    local ctrl_x = math.floor((sw - total_ctrl_w) / 2)
+    local ctrl_y = bar_y + bar_h - mark_sz - Screen:scaleBySize(8)
+
+    self._ctrl_prev_dimen = Geom:new{ x = ctrl_x, y = ctrl_y + math.floor((mark_sz - side_sz)/2), w = side_sz, h = side_sz }
+    self._ctrl_mark_dimen = Geom:new{ x = ctrl_x + side_sz + ctrl_sp, y = ctrl_y, w = mark_sz, h = mark_sz }
+    self._ctrl_next_dimen = Geom:new{ x = ctrl_x + side_sz + mark_sz + ctrl_sp * 2, y = ctrl_y + math.floor((mark_sz - side_sz)/2), w = side_sz, h = side_sz }
+
+    local row1_y = bar_y + Screen:scaleBySize(5)
     local text_center_x = math.floor(sw / 2)
     
     self._prev_ch_dimen = Geom:new{ x = text_center_x - math.floor(self.max_title_w / 2) - self._cbtn_sz - Screen:scaleBySize(8), y = row1_y, w = self._cbtn_sz, h = self._cbtn_sz }
@@ -282,56 +281,21 @@ function PageScrubber:_getChapter(page)
     return _("—")
 end
 
-function PageScrubber:_isBookmarked(page)
-    local res = false
+function PageScrubber:_isCurrentPageBookmarked()
+    local bookmarked = false
     pcall(function()
-        local bm_mod = self.ui.bookmark or (self.ui.readModule and self.ui:readModule("ReaderBookmark"))
-        if not bm_mod then return end
-        
-        if type(bm_mod.hasBookmark) == "function" then
-            if bm_mod:hasBookmark(page) then
-                res = true
-                return
-            end
-        end
-        if type(bm_mod.isBookmarked) == "function" then
-            if bm_mod:isBookmarked(page) then
-                res = true
-                return
-            end
-        end
-        
-        local bookmarks = bm_mod.bookmarks or (bm_mod.getBookmarkList and bm_mod:getBookmarkList())
-        if type(bookmarks) == "table" then
-            for _, bm in ipairs(bookmarks) do
-                local bm_page = nil
-                if type(bm.page) == "number" then
-                    bm_page = bm.page
-                elseif bm.pos then
-                    if type(bm.pos.page) == "number" then
-                        bm_page = bm.pos.page
-                    elseif type(self.ui.document.getPageFromPos) == "function" then
-                        pcall(function() bm_page = self.ui.document:getPageFromPos(bm.pos) end)
-                    end
-                elseif type(self.ui.document.getPageFromPos) == "function" then
-                    pcall(function() bm_page = self.ui.document:getPageFromPos(bm) end)
-                end
-                
-                if bm_page == page then
-                    res = true
-                    break
-                end
-            end
+        if self.ui.view and self.ui.view.dogear_visible then
+            bookmarked = true
         end
     end)
-    return res
+    return bookmarked
 end
 
 function PageScrubber:_updateTexts()
     local pct = math.floor(self._cur_page / math.max(1, self._total_pages) * 100)
     self.tw_chapter:setText(self:_getChapter(self._cur_page))
     self.tw_info:setText(pct .. "%  ·  " .. self._cur_page .. " / " .. self._total_pages)
-    self.ch_y_pos = self._bar_dimen.y + Screen:scaleBySize(12)
+    self.ch_y_pos = self._bar_dimen.y + Screen:scaleBySize(5)
 end
 
 function PageScrubber:_gotoPage(page)
@@ -380,42 +344,72 @@ function PageScrubber:_paintToImpl(bb, x, y)
     bb:paintRect(wd.x - thick, wd.y, thick, wd.h, border_color)
     bb:paintRect(wd.x + wd.w, wd.y, thick, wd.h, border_color)
 
-    local function drawFloatingBtn(dimen, tw, text_offset_x, force_invert)
-        local is_pressed = (self._pressed_btn == tw.text) or force_invert
-        local bg_color = is_pressed and Blitbuffer.COLOR_WHITE or Blitbuffer.COLOR_BLACK
-        local fg_color = is_pressed and Blitbuffer.COLOR_BLACK or Blitbuffer.COLOR_WHITE
+    local function drawFloatingBtn(btn_id, dimen, tw, text_offset_x)
+        local is_pressed = (self._pressed_btn == btn_id)
+        local fg_color = is_pressed and Blitbuffer.COLOR_DARK_GRAY or Blitbuffer.COLOR_WHITE
         
         local cx = dimen.x + math.floor(dimen.w / 2)
         local cy = dimen.y + math.floor(dimen.h / 2)
         
-        if tw.text == "✕" or tw.text == "☰" or tw.text == "★" or tw.text == "‹‹" or tw.text == "››" then
+        if btn_id == "ctrl_prev" or btn_id == "ctrl_mark" or btn_id == "ctrl_next" or btn_id == "ch_l" or btn_id == "ch_r" then
+            tw.fgcolor = fg_color
+            local tsz = tw:getSize()
+            local y_offset = 0
+            if tw.text == "\u{F097}" or tw.text == "\u{F02E}" then
+                y_offset = Screen:scaleBySize(1)
+            elseif tw.text == "‹‹" or tw.text == "››" then
+                y_offset = -Screen:scaleBySize(1)
+            end
+            tw:paintTo(bb, cx - math.floor(tsz.w / 2) + (text_offset_x or 0), cy - math.floor(tsz.h / 2) + y_offset)
+            return
+        end
+
+        if btn_id == "x" or btn_id == "bm" or btn_id == "toc" then
+            local bg_color = is_pressed and Blitbuffer.COLOR_WHITE or Blitbuffer.COLOR_BLACK
+            fg_color = is_pressed and Blitbuffer.COLOR_BLACK or Blitbuffer.COLOR_WHITE
             paintRoundRect(bb, dimen.x, dimen.y, dimen.w, dimen.h, Screen:scaleBySize(8), Blitbuffer.COLOR_WHITE)
             paintRoundRect(bb, dimen.x + Screen:scaleBySize(2), dimen.y + Screen:scaleBySize(2), dimen.w - Screen:scaleBySize(4), dimen.h - Screen:scaleBySize(4), Screen:scaleBySize(6), bg_color)
-        else
+            
+            tw.fgcolor = fg_color
+            local tsz = tw:getSize()
+            local top_y_off = Screen:scaleBySize(1)
+            tw:paintTo(bb, cx - math.floor(tsz.w / 2), cy - math.floor(tsz.h / 2) + top_y_off)
+            return
+        end
+
+        do
+            local bg_color = is_pressed and Blitbuffer.COLOR_WHITE or Blitbuffer.COLOR_BLACK
+            fg_color = is_pressed and Blitbuffer.COLOR_BLACK or Blitbuffer.COLOR_WHITE
             paintCircle(bb, cx, cy, math.floor(dimen.w / 2), Blitbuffer.COLOR_WHITE)
             paintCircle(bb, cx, cy, math.floor(dimen.w / 2) - Screen:scaleBySize(2), bg_color)
+
+            tw.fgcolor = fg_color
+            local tsz = tw:getSize()
+            local arr_x_off = text_offset_x or 0
+            local arr_y_off = -Screen:scaleBySize(4)
+            tw:paintTo(bb, cx - math.floor(tsz.w / 2) + arr_x_off, cy - math.floor(tsz.h / 2) + arr_y_off)
         end
-        
-        tw.fgcolor = fg_color
-        local tsz = tw:getSize()
-        tw:paintTo(bb, cx - math.floor(tsz.w / 2) + (text_offset_x or 0), cy - math.floor(tsz.h / 2) - Screen:scaleBySize(3))
     end
 
-    drawFloatingBtn(self._x_dimen, self.tw_x)
+    drawFloatingBtn("x", self._x_dimen, self.tw_x)
+    drawFloatingBtn("bm", self._bm_dimen, self.tw_bm)
+    drawFloatingBtn("toc", self._toc_dimen, self.tw_toc)
     
-    local is_bm = self:_isBookmarked(self._cur_page)
-    drawFloatingBtn(self._bm_dimen, self.tw_bm, 0, is_bm)
-    
-    drawFloatingBtn(self._toc_dimen, self.tw_toc)
-    
-    drawFloatingBtn(self._prev_dimen, self.tw_arr_l, -Screen:scaleBySize(2))
-    drawFloatingBtn(self._next_dimen, self.tw_arr_r, Screen:scaleBySize(2))
+    drawFloatingBtn("arr_l", self._prev_dimen, self.tw_arr_l, -Screen:scaleBySize(2))
+    drawFloatingBtn("arr_r", self._next_dimen, self.tw_arr_r, Screen:scaleBySize(2))
 
     bb:paintRect(bd.x, bd.y, bd.w, bd.h, Blitbuffer.COLOR_BLACK)
     bb:paintRect(bd.x, bd.y, bd.w, Screen:scaleBySize(2), Blitbuffer.COLOR_WHITE)
 
-    drawFloatingBtn(self._prev_ch_dimen, self.tw_ch_l)
-    drawFloatingBtn(self._next_ch_dimen, self.tw_ch_r)
+    drawFloatingBtn("ch_l", self._prev_ch_dimen, self.tw_ch_l)
+    drawFloatingBtn("ch_r", self._next_ch_dimen, self.tw_ch_r)
+
+    local is_marked = self:_isCurrentPageBookmarked()
+    self.tw_ctrl_mark:setText(is_marked and "\u{F02E}" or "\u{F097}")
+
+    drawFloatingBtn("ctrl_prev", self._ctrl_prev_dimen, self.tw_ctrl_prev)
+    drawFloatingBtn("ctrl_mark", self._ctrl_mark_dimen, self.tw_ctrl_mark)
+    drawFloatingBtn("ctrl_next", self._ctrl_next_dimen, self.tw_ctrl_next)
 
     local csz_tw = self.tw_chapter:getSize()
     self.tw_chapter:paintTo(bb, math.floor((sw - csz_tw.w) / 2), self.ch_y_pos)
@@ -424,8 +418,9 @@ function PageScrubber:_paintToImpl(bb, x, y)
     local info_y = self.ch_y_pos + csz_tw.h + Screen:scaleBySize(2)
     self.tw_info:paintTo(bb, math.floor((sw - isz.w) / 2), info_y)
 
+    -- Barra de progreso un toquecito más arriba todavía
     local slider_x = pad * 2
-    local slider_y = bd.y + bd.h - Screen:scaleBySize(45)
+    local slider_y = info_y + isz.h - Screen:scaleBySize(6)
     self._slider.value = self._cur_page
     self._slider:paintTo(bb, slider_x, slider_y)
 end
@@ -437,9 +432,6 @@ function PageScrubber:_closeReturn()
     if self._cur_page ~= self._origin_page then
         self.ui:handleEvent(Event:new("GotoPage", self._origin_page))
     end
-    if self.ui.paging then 
-        pcall(function() self.ui.paging:exitSkimMode() end) 
-    end
     UIManager:close(self)
 end
 
@@ -447,9 +439,6 @@ function PageScrubber:_closeStay()
     if self._closing then return end
     self._closing = true
     self:_cancelHold()
-    if self.ui.paging then 
-        pcall(function() self.ui.paging:exitSkimMode() end) 
-    end
     UIManager:close(self)
 end
 
@@ -457,9 +446,6 @@ function PageScrubber:_closeAndShow(event_name)
     if self._closing then return end
     self._closing = true
     self:_cancelHold()
-    if self.ui.paging then 
-        pcall(function() self.ui.paging:exitSkimMode() end) 
-    end
     UIManager:close(self)
     
     UIManager:scheduleIn(0.15, function()
@@ -523,31 +509,58 @@ function PageScrubber:onTap(_, ges)
     self:_cancelHold()
     if self._closing then return true end
     if self._x_dimen and ges.pos:intersectWith(self._x_dimen) then
-        self:_flashAndDo("✕", self._x_dimen, function() self:_closeReturn() end)
+        self:_flashAndDo("x", self._x_dimen, function() self:_closeReturn() end)
         return true
     end
     if self._toc_dimen and ges.pos:intersectWith(self._toc_dimen) then
-        self:_flashAndDo("☰", self._toc_dimen, function() self:_closeAndShow("ShowToc") end)
+        self:_flashAndDo("toc", self._toc_dimen, function() self:_closeAndShow("ShowToc") end)
         return true
     end
     if self._bm_dimen and ges.pos:intersectWith(self._bm_dimen) then
-        self:_flashAndDo("★", self._bm_dimen, function() self:_closeAndShow("ShowBookmark") end)
+        self:_flashAndDo("bm", self._bm_dimen, function() self:_closeAndShow("ShowBookmark") end)
+        return true
+    end
+    if self._ctrl_prev_dimen and ges.pos:intersectWith(self._ctrl_prev_dimen) then
+        self:_flashAndDo("ctrl_prev", self._ctrl_prev_dimen, function()
+            self.ui:handleEvent(Event:new("GotoPreviousBookmarkFromPage", false))
+            self._cur_page = (self.ui.paging and self.ui.paging:getCurrentPage()) or (self.ui.view and self.ui.view.state and self.ui.view.state.page) or self._cur_page
+            self._slider.value = self._cur_page
+            self:_updateTexts()
+            UIManager:setDirty(self, "ui", self.dimen)
+        end)
+        return true
+    end
+    if self._ctrl_mark_dimen and ges.pos:intersectWith(self._ctrl_mark_dimen) then
+        self:_flashAndDo("ctrl_mark", self._ctrl_mark_dimen, function()
+            self.ui:handleEvent(Event:new("ToggleBookmark"))
+            UIManager:setDirty(self, "ui", self.dimen)
+        end)
+        return true
+    end
+    if self._ctrl_next_dimen and ges.pos:intersectWith(self._ctrl_next_dimen) then
+        self:_flashAndDo("ctrl_next", self._ctrl_next_dimen, function()
+            self.ui:handleEvent(Event:new("GotoNextBookmarkFromPage", false))
+            self._cur_page = (self.ui.paging and self.ui.paging:getCurrentPage()) or (self.ui.view and self.ui.view.state and self.ui.view.state.page) or self._cur_page
+            self._slider.value = self._cur_page
+            self:_updateTexts()
+            UIManager:setDirty(self, "ui", self.dimen)
+        end)
         return true
     end
     if self._prev_dimen and ges.pos:intersectWith(self._prev_dimen) then
-        self:_flashAndDo("‹", self._prev_dimen, function() self:_gotoPage(self._cur_page - 1) end)
+        self:_flashAndDo("arr_l", self._prev_dimen, function() self:_gotoPage(self._cur_page - 1) end)
         return true
     end
     if self._next_dimen and ges.pos:intersectWith(self._next_dimen) then
-        self:_flashAndDo("›", self._next_dimen, function() self:_gotoPage(self._cur_page + 1) end)
+        self:_flashAndDo("arr_r", self._next_dimen, function() self:_gotoPage(self._cur_page + 1) end)
         return true
     end
     if self._prev_ch_dimen and ges.pos:intersectWith(self._prev_ch_dimen) then
-        self:_flashAndDo("‹‹", self._prev_ch_dimen, function() self:_prevChapter() end)
+        self:_flashAndDo("ch_l", self._prev_ch_dimen, function() self:_prevChapter() end)
         return true
     end
     if self._next_ch_dimen and ges.pos:intersectWith(self._next_ch_dimen) then
-        self:_flashAndDo("››", self._next_ch_dimen, function() self:_nextChapter() end)
+        self:_flashAndDo("ch_r", self._next_ch_dimen, function() self:_nextChapter() end)
         return true
     end
     if self._slider:handleTap(ges) then return true end
@@ -620,14 +633,13 @@ function PageScrubber:onCloseWidget()
     if self.tw_x then self.tw_x:free() end
     if self.tw_toc then self.tw_toc:free() end
     if self.tw_bm then self.tw_bm:free() end
+    if self.tw_ctrl_prev then self.tw_ctrl_prev:free() end
+    if self.tw_ctrl_mark then self.tw_ctrl_mark:free() end
+    if self.tw_ctrl_next then self.tw_ctrl_next:free() end
     if self.tw_arr_l then self.tw_arr_l:free() end
     if self.tw_arr_r then self.tw_arr_r:free() end
     if self.tw_ch_l then self.tw_ch_l:free() end
     if self.tw_ch_r then self.tw_ch_r:free() end
-
-    if self.ui.paging then
-        pcall(function() self.ui.paging:exitSkimMode() end)
-    end
 end
 
 function PageScrubber:onClose()
