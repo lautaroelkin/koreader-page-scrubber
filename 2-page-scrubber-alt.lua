@@ -1,6 +1,7 @@
+
 --[[
     2-page-scrubber-alt.lua
-    Page scrubber overlay (Optimized, Memory Leak Free, Top Bar at Y=0, Circular Side Buttons & Clean Chapter Controls).
+    Page scrubber overlay (Kindle E-ink optimized hold speed).
 ]]--
 
 local Blitbuffer      = require("ffi/blitbuffer")
@@ -161,7 +162,6 @@ function PageScrubber:init()
     self._closing     = false
     self._hold_token  = 0
     self._hold_active = false
-    self._hold_count  = 0
 
     local sw = Screen:getWidth()
     local sh = Screen:getHeight()
@@ -206,9 +206,12 @@ function PageScrubber:init()
     local bar_y = sh - bar_h
     self._bar_dimen = Geom:new{ x = 0, y = bar_y, w = sw, h = bar_h }
 
-    self.tw_toc      = TextWidget:new{ text = "☰",   face = Font:getFace("cfont", Screen:scaleBySize(25)), fgcolor = Blitbuffer.COLOR_BLACK }
-    self.tw_bm       = TextWidget:new{ text = "★",   face = Font:getFace("cfont", Screen:scaleBySize(23)), fgcolor = Blitbuffer.COLOR_BLACK }
-    self.tw_x        = TextWidget:new{ text = "✕",   face = Font:getFace("cfont", Screen:scaleBySize(25)), fgcolor = Blitbuffer.COLOR_BLACK }
+    -- Botones superiores (Orden: ⚙ -> ☰ -> Aa -> ★)
+    self.tw_fn       = TextWidget:new{ text = "⚙",   face = Font:getFace("cfont", Screen:scaleBySize(18)), fgcolor = Blitbuffer.COLOR_BLACK }
+    self.tw_toc      = TextWidget:new{ text = "☰",   face = Font:getFace("cfont", Screen:scaleBySize(22)), fgcolor = Blitbuffer.COLOR_BLACK }
+    self.tw_aa       = TextWidget:new{ text = "Aa",  face = Font:getFace("cfont", Screen:scaleBySize(16)), fgcolor = Blitbuffer.COLOR_BLACK }
+    self.tw_bm       = TextWidget:new{ text = "★",   face = Font:getFace("cfont", Screen:scaleBySize(20)), fgcolor = Blitbuffer.COLOR_BLACK }
+    self.tw_x        = TextWidget:new{ text = "✕",   face = Font:getFace("cfont", Screen:scaleBySize(22)), fgcolor = Blitbuffer.COLOR_BLACK }
 
     self.tw_arr_l    = TextWidget:new{ text = "‹",   face = Font:getFace("cfont", Screen:scaleBySize(38)), fgcolor = Blitbuffer.COLOR_BLACK }
     self.tw_arr_r    = TextWidget:new{ text = "›",   face = Font:getFace("cfont", Screen:scaleBySize(38)), fgcolor = Blitbuffer.COLOR_BLACK }
@@ -227,14 +230,18 @@ function PageScrubber:init()
 
     self:_updateTexts()
 
-    local top_sz    = Screen:scaleBySize(48)
-    local spacing   = Screen:scaleBySize(10)
+    local top_sz    = Screen:scaleBySize(44)
+    local spacing   = Screen:scaleBySize(8)
+    local left_base = Screen:scaleBySize(14)
     local right_base = sw - Screen:scaleBySize(14)
     local top_y     = top_bar_y + math.floor((top_h - top_sz) / 2)
 
     self._x_dimen   = Geom:new{ x = right_base - top_sz, y = top_y, w = top_sz, h = top_sz }
-    self._bm_dimen  = Geom:new{ x = self._x_dimen.x - spacing - top_sz, y = top_y, w = top_sz, h = top_sz }
-    self._toc_dimen = Geom:new{ x = self._bm_dimen.x - spacing - top_sz, y = top_y, w = top_sz, h = top_sz }
+    
+    self._fn_dimen  = Geom:new{ x = left_base, y = top_y, w = top_sz, h = top_sz }
+    self._toc_dimen = Geom:new{ x = self._fn_dimen.x + top_sz + spacing, y = top_y, w = top_sz, h = top_sz }
+    self._aa_dimen  = Geom:new{ x = self._toc_dimen.x + top_sz + spacing, y = top_y, w = top_sz, h = top_sz }
+    self._bm_dimen  = Geom:new{ x = self._aa_dimen.x + top_sz + spacing, y = top_y, w = top_sz, h = top_sz }
     
     local circ_sz = Screen:scaleBySize(54)
     local mid_y   = math.floor((sh - circ_sz) / 2)
@@ -351,10 +358,9 @@ function PageScrubber:_paintToImpl(bb, x, y)
     bb:paintRect(bd.x, bd.y, bd.w, bd.h, Blitbuffer.COLOR_WHITE)
     bb:paintRect(bd.x, bd.y, bd.w, Screen:scaleBySize(2), Blitbuffer.COLOR_BLACK)
 
-    local function drawFloatingBtn(btn_id, dimen, tw, text_offset_x)
+    local function drawFloatingBtn(btn_id, dimen, tw)
         local is_pressed = (self._pressed_btn == btn_id)
         local fg_color = is_pressed and Blitbuffer.COLOR_WHITE or Blitbuffer.COLOR_BLACK
-        
         local cx = dimen.x + math.floor(dimen.w / 2)
         local cy = dimen.y + math.floor(dimen.h / 2)
         
@@ -367,11 +373,11 @@ function PageScrubber:_paintToImpl(bb, x, y)
             elseif tw.text == "‹‹" or tw.text == "››" then
                 y_offset = -Screen:scaleBySize(1)
             end
-            tw:paintTo(bb, cx - math.floor(tsz.w / 2) + (text_offset_x or 0), cy - math.floor(tsz.h / 2) + y_offset)
+            tw:paintTo(bb, cx - math.floor(tsz.w / 2), cy - math.floor(tsz.h / 2) + y_offset)
             return
         end
 
-        if btn_id == "x" or btn_id == "bm" or btn_id == "toc" then
+        if btn_id == "x" or btn_id == "bm" or btn_id == "toc" or btn_id == "aa" or btn_id == "fn" then
             local bg_color = is_pressed and Blitbuffer.COLOR_BLACK or nil
             fg_color = is_pressed and Blitbuffer.COLOR_WHITE or Blitbuffer.COLOR_BLACK
             
@@ -402,12 +408,14 @@ function PageScrubber:_paintToImpl(bb, x, y)
         end
     end
 
+    drawFloatingBtn("fn", self._fn_dimen, self.tw_fn)
     drawFloatingBtn("toc", self._toc_dimen, self.tw_toc)
+    drawFloatingBtn("aa", self._aa_dimen, self.tw_aa)
     drawFloatingBtn("bm", self._bm_dimen, self.tw_bm)
     drawFloatingBtn("x", self._x_dimen, self.tw_x)
     
-    drawFloatingBtn("arr_l", self._prev_dimen, self.tw_arr_l, 0)
-    drawFloatingBtn("arr_r", self._next_dimen, self.tw_arr_r, 0)
+    drawFloatingBtn("arr_l", self._prev_dimen, self.tw_arr_l)
+    drawFloatingBtn("arr_r", self._next_dimen, self.tw_arr_r)
 
     drawFloatingBtn("ch_l", self._prev_ch_dimen, self.tw_ch_l)
     drawFloatingBtn("ch_r", self._next_ch_dimen, self.tw_ch_r)
@@ -458,36 +466,57 @@ function PageScrubber:_closeAndShow(event_name)
     end)
 end
 
+function PageScrubber:_closeAndOpenMenu()
+    if self._closing then return end
+    self._closing = true
+    self:_cancelHold()
+    local ui = self.ui
+    UIManager:close(self)
+    
+    UIManager:scheduleIn(0.15, function()
+        if ui and ui.menu and ui.menu.onShowMenu then
+            ui.menu:onShowMenu()
+        end
+    end)
+end
+
 function PageScrubber:_startHold(action)
     self._hold_active = true
     self._hold_token = self._hold_token + 1
-    self._hold_count = 0
     local current_token = self._hold_token
     
-    local initial_delay = 0.01
+    -- Velocidad segura y fluida constante para E-ink (250ms por página)
+    local delay = 0.25
+
     local function rep()
-        if not self._hold_active or self._closing or self._hold_token ~= current_token or self._hold_count >= 4 then 
+        if not self._hold_active or self._closing or self._hold_token ~= current_token then 
             self:_cancelHold()
             return 
         end
         
-        self._hold_count = self._hold_count + 1
-
         if action == "prev" then 
-            if self._cur_page > 1 then self:_gotoPage(self._cur_page - 1) else self:_cancelHold(); return end
+            if self._cur_page > 1 then 
+                self:_gotoPage(self._cur_page - 1) 
+            else 
+                self:_cancelHold(); return 
+            end
         elseif action == "next" then 
-            if self._cur_page < self._total_pages then self:_gotoPage(self._cur_page + 1) else self:_cancelHold(); return end
+            if self._cur_page < self._total_pages then 
+                self:_gotoPage(self._cur_page + 1) 
+            else 
+                self:_cancelHold(); return 
+            end
         end
         
-        UIManager:scheduleIn(0.005, rep)
+        UIManager:scheduleIn(delay, rep)
     end
-    UIManager:scheduleIn(initial_delay, rep)
+    
+    UIManager:scheduleIn(delay, rep)
 end
 
 function PageScrubber:_cancelHold()
     self._hold_active = false
     self._hold_token = self._hold_token + 1
-    self._hold_count = 0
 end
 
 function PageScrubber:onHide()
@@ -537,8 +566,16 @@ function PageScrubber:onTap(_, ges)
         return true
     end
 
+    if self._fn_dimen and ges.pos:intersectWith(self._fn_dimen) then
+        self:_flashAndDo("fn", self._fn_dimen, function() self:_closeAndOpenMenu() end)
+        return true
+    end
     if self._toc_dimen and ges.pos:intersectWith(self._toc_dimen) then
         self:_flashAndDo("toc", self._toc_dimen, function() self:_closeAndShow("ShowToc") end)
+        return true
+    end
+    if self._aa_dimen and ges.pos:intersectWith(self._aa_dimen) then
+        self:_flashAndDo("aa", self._aa_dimen, function() self:_closeAndShow("ShowConfigMenu") end)
         return true
     end
     if self._bm_dimen and ges.pos:intersectWith(self._bm_dimen) then
@@ -660,6 +697,8 @@ function PageScrubber:onCloseWidget()
     if self.tw_info then self.tw_info:free() end
     if self.tw_toc then self.tw_toc:free() end
     if self.tw_bm then self.tw_bm:free() end
+    if self.tw_aa then self.tw_aa:free() end
+    if self.tw_fn then self.tw_fn:free() end
     if self.tw_x then self.tw_x:free() end
     if self.tw_ctrl_prev then self.tw_ctrl_prev:free() end
     if self.tw_ctrl_mark then self.tw_ctrl_mark:free() end
