@@ -1,6 +1,7 @@
+
 --[[
     2-page-scrubber.lua
-    Page scrubber overlay (Strict Sequential Vertical Stack Layout, Top Right Utility Group).
+    Page scrubber overlay (Window mode, window shifted even higher).
 ]]--
 
 local Blitbuffer      = require("ffi/blitbuffer")
@@ -207,7 +208,6 @@ function PageScrubber:init()
     self._closing     = false
     self._hold_token  = 0
     self._hold_active = false
-    self._hold_count  = 0
 
     local sw = Screen:getWidth()
     local sh = Screen:getHeight()
@@ -244,18 +244,23 @@ function PageScrubber:init()
     local p_bot    = Screen:scaleBySize(6)
 
     local bar_h = p_top + ch_h + spacing1 + info_h + spacing2 + slider_h + spacing3 + mark_sz + p_bot
+    
+    -- Barra inferior al borde absoluto de la pantalla
     local bar_y = sh - bar_h
     self._bar_dimen = Geom:new{ x = 0, y = bar_y, w = sw, h = bar_h }
 
-    local edge_margin = Screen:scaleBySize(6)
-    local arr_sz      = Screen:scaleBySize(52)
-    local gap         = Screen:scaleBySize(10)
+    local edge_margin = Screen:scaleBySize(2)
+    local arr_sz      = Screen:scaleBySize(48)
+    local gap         = Screen:scaleBySize(4)
 
     local win_x       = edge_margin + arr_sz + gap
     local right_btn_x = sw - edge_margin - arr_sz
     local win_w       = right_btn_x - gap - win_x
-    local win_y       = Screen:scaleBySize(60)
-    local win_h       = bar_y - win_y - Screen:scaleBySize(8)
+    
+    -- Ventana desplazada más arriba (win_y más pequeño)
+    local win_y       = Screen:scaleBySize(4)
+    local bottom_margin = Screen:scaleBySize(20)
+    local win_h       = bar_y - win_y - bottom_margin
 
     self._win_dimen = Geom:new{ x = win_x, y = win_y, w = win_w, h = win_h }
 
@@ -290,7 +295,7 @@ function PageScrubber:init()
     self._bm_dimen  = Geom:new{ x = self._x_dimen.x - spacing - top_sz, y = by, w = top_sz, h = top_sz }
     self._toc_dimen = Geom:new{ x = self._bm_dimen.x - spacing - top_sz, y = by, w = top_sz, h = top_sz }
     
-    local arr_y   = win_y + math.floor((win_h - arr_sz) / 2) - Screen:scaleBySize(8)
+    local arr_y   = win_y + math.floor((win_h - arr_sz) / 2)
     self._prev_dimen = Geom:new{ x = edge_margin, y = arr_y, w = arr_sz, h = arr_sz }
     self._next_dimen = Geom:new{ x = right_btn_x, y = arr_y, w = arr_sz, h = arr_sz }
 
@@ -515,33 +520,39 @@ end
 function PageScrubber:_startHold(action)
     self._hold_active = true
     self._hold_token = self._hold_token + 1
-    self._hold_count = 0
     local current_token = self._hold_token
     
-    local initial_delay = 0.01
+    local delay = 0.25
+
     local function rep()
-        if not self._hold_active or self._closing or self._hold_token ~= current_token or self._hold_count >= 4 then 
+        if not self._hold_active or self._closing or self._hold_token ~= current_token then 
             self:_cancelHold()
             return 
         end
         
-        self._hold_count = self._hold_count + 1
-
         if action == "prev" then 
-            if self._cur_page > 1 then self:_gotoPage(self._cur_page - 1) else self:_cancelHold(); return end
+            if self._cur_page > 1 then 
+                self:_gotoPage(self._cur_page - 1) 
+            else 
+                self:_cancelHold(); return 
+            end
         elseif action == "next" then 
-            if self._cur_page < self._total_pages then self:_gotoPage(self._cur_page + 1) else self:_cancelHold(); return end
+            if self._cur_page < self._total_pages then 
+                self:_gotoPage(self._cur_page + 1) 
+            else 
+                self:_cancelHold(); return 
+            end
         end
         
-        UIManager:scheduleIn(0.005, rep)
+        UIManager:scheduleIn(delay, rep)
     end
-    UIManager:scheduleIn(initial_delay, rep)
+    
+    UIManager:scheduleIn(delay, rep)
 end
 
 function PageScrubber:_cancelHold()
     self._hold_active = false
     self._hold_token = self._hold_token + 1
-    self._hold_count = 0
 end
 
 function PageScrubber:onHide()
