@@ -1,6 +1,6 @@
 --[[
-    2-page-scrubber.lua
-    Page scrubber overlay (Top Bar starting at Y=0, Optically Centered Circular Side Buttons & Clean Chapter Controls).
+    2-page-scrubber-alt.lua
+    Page scrubber overlay (Optimized, Memory Leak Free, Top Bar at Y=0, Circular Side Buttons & Clean Chapter Controls).
 ]]--
 
 local Blitbuffer      = require("ffi/blitbuffer")
@@ -63,7 +63,7 @@ function ProgressSlider:new(o)
     local obj = setmetatable(o or {}, self)
     obj.knob_r = Screen:scaleBySize(10)
     obj.height = obj.knob_r * 2 + Screen:scaleBySize(6)
-    obj.dimen   = Geom:new{ w = obj.width or 0, h = obj.height }
+    obj.dimen   = Geom:new{ x = 0, y = 0, w = obj.width or 0, h = obj.height }
     obj._dragging = false
     return obj
 end
@@ -167,7 +167,6 @@ function PageScrubber:init()
     local sh = Screen:getHeight()
     local pad = Screen:scaleBySize(16)
 
-    -- 1. Barra Superior Limpia arrancando desde Y=0 para tapar bien arriba
     local top_h     = Screen:scaleBySize(62)
     local top_bar_y = 0
     self._top_bar_dimen = Geom:new{ x = 0, y = top_bar_y, w = sw, h = top_h }
@@ -207,16 +206,13 @@ function PageScrubber:init()
     local bar_y = sh - bar_h
     self._bar_dimen = Geom:new{ x = 0, y = bar_y, w = sw, h = bar_h }
 
-    -- Widgets superiores (más grandes y sin bordes)
     self.tw_toc      = TextWidget:new{ text = "☰",   face = Font:getFace("cfont", Screen:scaleBySize(25)), fgcolor = Blitbuffer.COLOR_BLACK }
     self.tw_bm       = TextWidget:new{ text = "★",   face = Font:getFace("cfont", Screen:scaleBySize(23)), fgcolor = Blitbuffer.COLOR_BLACK }
     self.tw_x        = TextWidget:new{ text = "✕",   face = Font:getFace("cfont", Screen:scaleBySize(25)), fgcolor = Blitbuffer.COLOR_BLACK }
 
-    -- Botones circulares laterales de cambio de página
     self.tw_arr_l    = TextWidget:new{ text = "‹",   face = Font:getFace("cfont", Screen:scaleBySize(38)), fgcolor = Blitbuffer.COLOR_BLACK }
     self.tw_arr_r    = TextWidget:new{ text = "›",   face = Font:getFace("cfont", Screen:scaleBySize(38)), fgcolor = Blitbuffer.COLOR_BLACK }
 
-    -- Botones de cambio de capítulo
     self.tw_ch_l     = TextWidget:new{ text = "‹‹",  face = Font:getFace("cfont", Screen:scaleBySize(24)), fgcolor = Blitbuffer.COLOR_BLACK }
     self.tw_ch_r     = TextWidget:new{ text = "››",  face = Font:getFace("cfont", Screen:scaleBySize(24)), fgcolor = Blitbuffer.COLOR_BLACK }
 
@@ -231,7 +227,6 @@ function PageScrubber:init()
 
     self:_updateTexts()
 
-    -- Posicionamiento de los 3 botones superiores
     local top_sz    = Screen:scaleBySize(48)
     local spacing   = Screen:scaleBySize(10)
     local right_base = sw - Screen:scaleBySize(14)
@@ -241,13 +236,11 @@ function PageScrubber:init()
     self._bm_dimen  = Geom:new{ x = self._x_dimen.x - spacing - top_sz, y = top_y, w = top_sz, h = top_sz }
     self._toc_dimen = Geom:new{ x = self._bm_dimen.x - spacing - top_sz, y = top_y, w = top_sz, h = top_sz }
     
-    -- Botones laterales circulares
     local circ_sz = Screen:scaleBySize(54)
     local mid_y   = math.floor((sh - circ_sz) / 2)
     self._prev_dimen = Geom:new{ x = Screen:scaleBySize(12), y = mid_y, w = circ_sz, h = circ_sz }
     self._next_dimen = Geom:new{ x = sw - circ_sz - Screen:scaleBySize(12), y = mid_y, w = circ_sz, h = circ_sz }
 
-    -- Apilado secuencial inferior
     local current_y = bar_y + p_top
     self.ch_y_pos = current_y
     current_y = current_y + ch_h + spacing1
@@ -352,11 +345,9 @@ function PageScrubber:_paintToImpl(bb, x, y)
     local bd   = self._bar_dimen
     local td   = self._top_bar_dimen
 
-    -- Pintar barra superior limpia desde Y=0
     bb:paintRect(td.x, td.y, td.w, td.h, Blitbuffer.COLOR_WHITE)
     bb:paintRect(td.x, td.y + td.h - Screen:scaleBySize(2), td.w, Screen:scaleBySize(2), Blitbuffer.COLOR_BLACK)
 
-    -- Pintar barra inferior
     bb:paintRect(bd.x, bd.y, bd.w, bd.h, Blitbuffer.COLOR_WHITE)
     bb:paintRect(bd.x, bd.y, bd.w, Screen:scaleBySize(2), Blitbuffer.COLOR_BLACK)
 
@@ -380,7 +371,6 @@ function PageScrubber:_paintToImpl(bb, x, y)
             return
         end
 
-        -- Botones superiores sin contorno (solo fondo sólido al presionar)
         if btn_id == "x" or btn_id == "bm" or btn_id == "toc" then
             local bg_color = is_pressed and Blitbuffer.COLOR_BLACK or nil
             fg_color = is_pressed and Blitbuffer.COLOR_WHITE or Blitbuffer.COLOR_BLACK
@@ -395,7 +385,6 @@ function PageScrubber:_paintToImpl(bb, x, y)
             return
         end
 
-        -- Botones laterales circulares con ajuste óptico para centrado visual
         if btn_id == "arr_l" or btn_id == "arr_r" then
             local bg_color = is_pressed and Blitbuffer.COLOR_BLACK or Blitbuffer.COLOR_WHITE
             fg_color = is_pressed and Blitbuffer.COLOR_WHITE or Blitbuffer.COLOR_BLACK
@@ -606,7 +595,7 @@ function PageScrubber:onTap(_, ges)
         return true
     end
 
-    self:_closeReturn()
+    self:_closeStay()
     return true
 end
 
@@ -677,10 +666,12 @@ function PageScrubber:onCloseWidget()
     if self.tw_ctrl_next then self.tw_ctrl_next:free() end
     if self.tw_arr_l then self.tw_arr_l:free() end
     if self.tw_arr_r then self.tw_arr_r:free() end
+    if self.tw_ch_l then self.tw_ch_l:free() end
+    if self.tw_ch_r then self.tw_ch_r:free() end
 end
 
 function PageScrubber:onClose()
-    self:_closeReturn()
+    self:_closeStay()
     return true
 end
 
