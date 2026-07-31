@@ -1,7 +1,6 @@
-
 --[[
     2-page-scrubber-alt.lua
-    Page scrubber overlay (Kindle E-ink optimized hold speed).
+    Page scrubber overlay (Kindle E-ink optimized slow hold and loop protection).
 ]]--
 
 local Blitbuffer      = require("ffi/blitbuffer")
@@ -206,7 +205,6 @@ function PageScrubber:init()
     local bar_y = sh - bar_h
     self._bar_dimen = Geom:new{ x = 0, y = bar_y, w = sw, h = bar_h }
 
-    -- Botones superiores (Orden: ⚙ -> ☰ -> Aa -> ★)
     self.tw_fn       = TextWidget:new{ text = "⚙",   face = Font:getFace("cfont", Screen:scaleBySize(18)), fgcolor = Blitbuffer.COLOR_BLACK }
     self.tw_toc      = TextWidget:new{ text = "☰",   face = Font:getFace("cfont", Screen:scaleBySize(22)), fgcolor = Blitbuffer.COLOR_BLACK }
     self.tw_aa       = TextWidget:new{ text = "Aa",  face = Font:getFace("cfont", Screen:scaleBySize(16)), fgcolor = Blitbuffer.COLOR_BLACK }
@@ -485,13 +483,21 @@ function PageScrubber:_startHold(action)
     self._hold_token = self._hold_token + 1
     local current_token = self._hold_token
     
-    -- Velocidad segura y fluida constante para E-ink (250ms por página)
-    local delay = 0.25
+    -- Velocidad optimizada y protegida para E-ink (evita loops por pérdida de eventos)
+    local delay = 0.55
+    local max_steps = 20
+    local steps = 0
 
     local function rep()
         if not self._hold_active or self._closing or self._hold_token ~= current_token then 
             self:_cancelHold()
             return 
+        end
+        
+        steps = steps + 1
+        if steps > max_steps then
+            self:_cancelHold()
+            return
         end
         
         if action == "prev" then 
