@@ -16,4 +16,4 @@ You can also use the interactive progress bar and bookmark browser.
 ## ⚙️ Setup & Activation
  1. Open a book in KOReader.
  2. Go to **Settings** (⚙️) > **Gestures** > **Reader**.
- 3. Choose your preferred gesture and assign **Page Scrubber** (page_scrubber_action).
+ 3. Choose your preferred gesture and assign it to **Page Scrubber**
