@@ -1,7 +1,6 @@
-
 --[[
     2-page-scrubber.lua
-    Page scrubber overlay (Window mode, window shifted even higher).
+    Page scrubber overlay (Floating window mode with slower E-ink safe hold and loop protection).
 ]]--
 
 local Blitbuffer      = require("ffi/blitbuffer")
@@ -245,7 +244,6 @@ function PageScrubber:init()
 
     local bar_h = p_top + ch_h + spacing1 + info_h + spacing2 + slider_h + spacing3 + mark_sz + p_bot
     
-    -- Barra inferior al borde absoluto de la pantalla
     local bar_y = sh - bar_h
     self._bar_dimen = Geom:new{ x = 0, y = bar_y, w = sw, h = bar_h }
 
@@ -257,7 +255,6 @@ function PageScrubber:init()
     local right_btn_x = sw - edge_margin - arr_sz
     local win_w       = right_btn_x - gap - win_x
     
-    -- Ventana desplazada más arriba (win_y más pequeño)
     local win_y       = Screen:scaleBySize(4)
     local bottom_margin = Screen:scaleBySize(20)
     local win_h       = bar_y - win_y - bottom_margin
@@ -522,12 +519,20 @@ function PageScrubber:_startHold(action)
     self._hold_token = self._hold_token + 1
     local current_token = self._hold_token
     
-    local delay = 0.25
+    local delay = 0.55 -- Más lento para que la E-ink procese relajada y no se sature
+    local max_steps = 20 -- Límite de seguridad estricto contra loops infinitos
+    local steps = 0
 
     local function rep()
         if not self._hold_active or self._closing or self._hold_token ~= current_token then 
             self:_cancelHold()
             return 
+        end
+        
+        steps = steps + 1
+        if steps > max_steps then
+            self:_cancelHold()
+            return
         end
         
         if action == "prev" then 
