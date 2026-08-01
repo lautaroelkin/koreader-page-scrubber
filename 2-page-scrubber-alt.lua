@@ -483,7 +483,6 @@ function PageScrubber:_startHold(action)
     self._hold_token = self._hold_token + 1
     local current_token = self._hold_token
     
-    -- Velocidad optimizada y protegida para E-ink (evita loops por pérdida de eventos)
     local delay = 0.55
     local max_steps = 20
     local steps = 0
