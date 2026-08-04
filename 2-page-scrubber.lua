@@ -1,9 +1,10 @@
 --[[
     2-page-scrubber.lua
-    Page scrubber overlay (Floating window mode with slower E-ink safe hold and loop protection).
+    Page scrubber overlay (Floating window mode with E-ink time-based hold protection).
 ]]--
 
 local Blitbuffer      = require("ffi/blitbuffer")
+local Time            = require("ui/time")
 local Device          = require("device")
 local Dispatcher      = require("dispatcher")
 local Event           = require("ui/event")
@@ -166,8 +167,6 @@ function ProgressSlider:handlePan(ges)
         return true
     end
     if not (self.dimen and ges.pos:intersectWith(self.dimen)) then return false end
-    local dir = ges.direction
-    if dir == "north" or dir == "south" then return false end
     self._dragging = true
     local v = self:_xToValue(ges.pos.x - self.dimen.x)
     if v ~= self.value then 
@@ -518,15 +517,23 @@ function PageScrubber:_startHold(action)
     self._hold_active = true
     self._hold_token = self._hold_token + 1
     local current_token = self._hold_token
-    
-    local delay = 0.55 -- Más lento para que la E-ink procese relajada y no se sature
-    local max_steps = 20 -- Límite de seguridad estricto contra loops infinitos
+
+    local delay_s = 0.55
+    local delay = Time.s(delay_s)
+    local max_steps = 20
     local steps = 0
+    local next_due = Time.now() + delay
 
     local function rep()
         if not self._hold_active or self._closing or self._hold_token ~= current_token then 
             self:_cancelHold()
             return 
+        end
+
+        local now = Time.now()
+        if now < next_due then
+            UIManager:scheduleIn(Time.to_number(next_due - now), rep)
+            return
         end
         
         steps = steps + 1
@@ -549,10 +556,15 @@ function PageScrubber:_startHold(action)
             end
         end
         
-        UIManager:scheduleIn(delay, rep)
+        now = Time.now()
+        next_due = next_due + delay
+        if next_due < now then
+            next_due = now + delay
+        end
+        UIManager:scheduleIn(Time.to_number(next_due - now), rep)
     end
     
-    UIManager:scheduleIn(delay, rep)
+    UIManager:scheduleIn(delay_s, rep)
 end
 
 function PageScrubber:_cancelHold()
