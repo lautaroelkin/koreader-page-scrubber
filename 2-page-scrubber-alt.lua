@@ -4,6 +4,7 @@
 ]]--
 
 local Blitbuffer      = require("ffi/blitbuffer")
+local Time            = require("ui/time")
 local Device          = require("device")
 local Dispatcher      = require("dispatcher")
 local Event           = require("ui/event")
@@ -482,17 +483,32 @@ function PageScrubber:_startHold(action)
     self._hold_active = true
     self._hold_token = self._hold_token + 1
     local current_token = self._hold_token
-    
-    local delay = 0.55
+
+    -- Velocidad optimizada y protegida para E-ink (evita loops por pérdida de eventos).
+    -- Usamos el reloj monotónico de KOReader (ui/time) en vez de os.time(), que solo
+    -- tiene resolución de ~2s y no sirve para medir un delay de 0.55s.
+    local delay_s = 0.55
+    local delay = Time.s(delay_s)
     local max_steps = 20
     local steps = 0
+    -- "next_due" es un ancla de horario fija: el próximo turno de página nunca
+    -- puede ocurrir antes de este momento. Si un refresh se atrasa y el timer
+    -- se dispara tarde, igual exigimos que haya pasado un delay completo desde
+    -- la última ejecución real, así nunca se acumula una "ráfaga" pendiente.
+    local next_due = Time.now() + delay
 
     local function rep()
-        if not self._hold_active or self._closing or self._hold_token ~= current_token then 
+        if not self._hold_active or self._closing or self._hold_token ~= current_token then
             self:_cancelHold()
-            return 
+            return
         end
-        
+
+        local now = Time.now()
+        if now < next_due then
+            UIManager:scheduleIn(Time.to_number(next_due - now), rep)
+            return
+        end
+
         steps = steps + 1
         if steps > max_steps then
             self:_cancelHold()
@@ -512,11 +528,19 @@ function PageScrubber:_startHold(action)
                 self:_cancelHold(); return 
             end
         end
-        
-        UIManager:scheduleIn(delay, rep)
+
+        -- Avanzamos el ancla en incrementos fijos. Si nos atrasamos (refresh
+        -- lento), no dejamos que se acumule deuda: el próximo turno como
+        -- mínimo espera un delay completo desde ahora, nunca menos.
+        now = Time.now()
+        next_due = next_due + delay
+        if next_due < now then
+            next_due = now + delay
+        end
+        UIManager:scheduleIn(Time.to_number(next_due - now), rep)
     end
     
-    UIManager:scheduleIn(delay, rep)
+    UIManager:scheduleIn(delay_s, rep)
 end
 
 function PageScrubber:_cancelHold()
