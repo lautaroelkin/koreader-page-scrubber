@@ -17,7 +17,7 @@ This patch allows you to quickly flip back and forth through the book, with the 
 # 📄 Page Scrubbers 
  * [**2-page-scrubber-alt.lua**](./2-page-scrubber-alt.lua): Bottom bar with progress, chapter info, and E-ink-safe continuous hold.
  * [**2-page-scrubber.lua**](./2-page-scrubber.lua): Centered floating window variant with rounded corners, and quick-access buttons.
-
+  
 
 > 📱 Screenshots: **Page Browser and Page Scrubber**
 <p align="center">
