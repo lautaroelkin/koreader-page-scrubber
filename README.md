@@ -2,7 +2,7 @@
 Custom Lua patches for **KOReader** optimized for E-ink devices.
 
 # 📖 Page Browser 
-This patch allows you to quickly flip back and forth through the book, with the option to easily return to your original page using the 'x' button or stay on the new page.You can also use the interactive progress bar and bookmark browser. Streamlined, E-ink optimized, based on KOReader's browser architecture and inspired by the native Kindle page picker experience. [**2-page-browser.lua**](./2-page-browser.lua)
+This patch allows you to quickly flip back and forth through the book, with the option to easily return to your original page using the 'x' button or stay on the new page.You can also use the interactive progress bar and bookmark browser. Streamlined, E-ink optimized, based on KOReader's browser architecture and inspired by the native Kindle page picker experience. Get patch: [**2-page-browser.lua**](./2-page-browser.lua)
 
 -**Features**
 * **3-Page Thumbnail Grid:** Displays a live preview of the previous, current, and next pages side by side, keeping the active page perfectly centered.
