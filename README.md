@@ -24,6 +24,7 @@ This patch allows you to quickly flip back and forth through the book, with the 
   <img src="Screenshot_2026-08-05-01-00-43-539_org.koreader.launcher.jpg" width="45%" alt="Page Browser Preview" />
   <img src="Screenshot_2026-07-31-00-12-58-523_org.koreader.launcher.jpg" width="45%" alt="Page Scrubber Preview" />
 </p>
+
 > **Page Browser and Page Scrubber**
 
 
