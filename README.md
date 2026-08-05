@@ -1,7 +1,20 @@
 # KOReader Custom Patches 📚
 Custom Lua patches for **KOReader** optimized for E-ink devices.
 
-## 📖 Page Scrubbers
+# 📖 [Page Browser](./2-page-browser.lua)
+A streamlined, E-ink optimized page navigation patch for KOReader, based on KOReader's browser architecture and inspired by the native Kindle page picker experience.
+
+## Features
+* **3-Page Thumbnail Grid:** Displays a live preview of the previous, current, and next pages side by side, keeping the active page perfectly centered.
+* **E-Ink Safe Navigation:** Features a slow, controlled hold-to-repeat page turning speed to prevent ghosting loops and screen lag.
+* **Quick Access Toolbar:** Top navigation bar with direct buttons for Home, Settings, Bookmarks, Table of Contents, and Font Options.
+* **Progress & Info Bar:** Includes an interactive slider, chapter title, and a precise percentage/page counter.
+
+## Credits & Acknowledgments
+* **Zen UI Plugin:** Inspired by the clean, minimal aesthetic of the **Zen UI** plugin (`anthonygress/zen_ui.koplugin`).
+* Built upon KOReader's core architecture and community browser components.
+
+## 📄 Page Scrubbers
 This patch allows you to quickly flip back and forth through the book, with the option to easily return to your original page using the 'x' button or stay on the new page.
 You can also use the interactive progress bar and bookmark browser.
  * **2-page-scrubber-alt.lua**: Bottom bar with progress, chapter info, and E-ink-safe continuous hold.
