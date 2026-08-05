@@ -26,4 +26,4 @@ Credits & Acknowledgments
 ⚙️ Setup & Activation
  * Open a book in KOReader.
  * Go to Settings (⚙️) > Gestures > Reader.
- * Choose your preferred gesture and assign it to Page Scrubber
+ * Choose your preferred gesture and assign it to Page Scrubber.
