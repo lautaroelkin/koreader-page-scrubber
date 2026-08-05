@@ -18,7 +18,6 @@ This patch allows you to quickly flip back and forth through the book, with the 
  * [**2-page-scrubber-alt.lua**](./2-page-scrubber-alt.lua): Bottom bar with progress, chapter info, and E-ink-safe continuous hold.
  * [**2-page-scrubber.lua**](./2-page-scrubber.lua): Centered floating window variant with rounded corners, and quick-access buttons.
    
- 
 📱 Screenshots: 
 <p align="center">
   <img src="Screenshot_2026-08-05-01-00-43-539_org.koreader.launcher.jpg" width="45%" alt="Page Browser Preview" />
