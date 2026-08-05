@@ -29,7 +29,7 @@ This patch allows you to quickly flip back and forth through the book, with the 
  2. Place it in your KOReader user plugins/patches folder.
  3. Restart KOReader.
     
-• **Setup & Activation**
+  **Setup & Activation**
  1. Open a book in KOReader.
  2. Go to **Settings** (⚙️) > **Gestures** > **Reader**.
  3. Choose your preferred gesture and assign it to **Page Scrubber**
