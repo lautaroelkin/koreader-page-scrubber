@@ -10,6 +10,8 @@ This patch allows you to quickly flip back and forth through the book, with the 
 * **Quick Access Toolbar:** Top navigation bar with direct buttons for Home, Settings, Bookmarks, Table of Contents, and Font Options.
 * **Progress & Info Bar:** Includes an interactive slider, chapter title, and a precise percentage/page counter.
 
+[](Screenshot_2026-08-05-01-00-43-539_org.koreader.launcher.jpg)
+
 ## Credits & Acknowledgments
 * **Zen UI Plugin:** Inspired by the clean, minimal aesthetic of the **Zen UI** plugin (`anthonygress/zen_ui.koplugin`).
 * Built upon KOReader's core architecture and community browser components.
