@@ -25,14 +25,15 @@ This patch allows you to quickly flip back and forth through the book, with the 
 </p>
 
 > **Page Browser and Page Scrubber**
-> You can only lunch one patch of this collection at a time, don't try to activate more than one because it won't work.
-> 
+ 
 ## ⚙️ Installation
  1. Download the .lua file.
  2. Place it in your KOReader user plugins/patches folder.
  3. Restart KOReader.
+   
     
   **Setup & Activation**
  1. Open a book in KOReader.
  2. Go to **Settings** (⚙️) > **Gestures** > **Reader**.
  3. Choose your preferred gesture and assign it to **Page Scrubber**
+> You can only lunch one patch of this collection at a time, don't try to activate more than one because it won't work.
