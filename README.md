@@ -15,8 +15,9 @@ This patch allows you to quickly flip back and forth through the book, with the 
 * Built upon KOReader's core architecture and community browser components.
 
 # 📄 Page Scrubbers 
+* [**2-page-scrubber.lua**](./2-page-scrubber.lua): Centered floating window with rounded corners, and quick-access buttons.
  * [**2-page-scrubber-alt.lua**](./2-page-scrubber-alt.lua): Bottom bar with progress, chapter info, and a top navigation toolbar. It's the simplest and more subtle page scrubber of the bunch. 
- * [**2-page-scrubber.lua**](./2-page-scrubber.lua): Centered floating window variant with rounded corners, and quick-access buttons.
+ 
    
 ## 📱 Screenshots: 
 <p align="center">
@@ -36,4 +37,4 @@ This patch allows you to quickly flip back and forth through the book, with the 
  1. Open a book in KOReader.
  2. Go to **Settings** (⚙️) > **Gestures** > **Reader**.
  3. Choose your preferred gesture and assign it to **Page Scrubber**
-> You can only lunch one patch of this collection at a time, don't try to activate more than one because it won't work.
+> You can only lunch one patch of this collection at a time, if you try to activate more than one it won't work.
